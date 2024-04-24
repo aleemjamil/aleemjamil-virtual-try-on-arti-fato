@@ -1,1 +1,130 @@
-# aleemjamil-virtual-try-on-arti-fato
+# Virtual Try On Arti Fato 
+In this project our aim was to make a virtual try on model that takes in an image of a person and a clothing item as an input and returns an image of the person wearing the clothing item given as input. 
+
+![Alt-text](./images/usecase.jpg)
+
+
+## Data collection: 
+The notebooks for data collection are provided in the git. Note that we have provided the noteboks for scrapping from three different websites namely: 
+- modiva
+- net-a-porter
+- zalando
+
+We finetuned the model usig around 16k training images where as the orignal dataset only included around 8k training images. The training required around 40gb or VRAM and was ran for 4 days. 
+The mdoel was fine tuned using DCI vtons pipeline with datset scrapped from various online stores. The dataset in its core, apart from the preprocessings (i.e the pose estimations, the segmentations and masks) is image and clothing pairs. 
+
+<p> 
+    <img src="/images/00006_00.jpg" width=200 height=250/>
+    <img src= "/images/00006_002.jpg" width=200 height=250/>
+</p>
+
+
+## Inference: 
+The model requires around 12 gb of VRAM in order to run the inferences.
+
+1. Make sure that you have an enviornment set up with all the dependencies: 
+```
+cd DCI-VTON-Virtual-Try-On
+conda env create -f environment.yml
+```
+
+2.  Make sure that the dataset you have is in the following format: 
+
+```
+├── Dataset_folder
+|   ├── test_pairs.txt
+|   ├── train_pairs.txt
+│   ├── [train | test]
+|   |   ├── image
+│   │   │   ├── [000006_00.jpg | 000008_00.jpg | ...]
+│   │   ├── cloth
+│   │   │   ├── [000006_00.jpg | 000008_00.jpg | ...]
+│   │   ├── cloth-mask
+│   │   │   ├── [000006_00.jpg | 000008_00.jpg | ...]
+│   │   ├── cloth-warp
+│   │   │   ├── [000006_00.jpg | 000008_00.jpg | ...]
+│   │   ├── cloth-warp-mask
+│   │   │   ├── [000006_00.jpg | 000008_00.jpg | ...]
+│   │   ├── unpaired-cloth-warp
+│   │   │   ├── [000006_00.jpg | 000008_00.jpg | ...]
+│   │   ├── unpaired-cloth-warp-mask
+│   │   │   ├── [000006_00.jpg | 000008_00.jpg | ...]
+```
+3. Download the model weights from GPU1. You can find the weights at this path: 
+```
+"/additional_drive2/zaka/Tryon/tryon/model_weights"
+```
+
+4. Move to the DCI Vton directory
+```
+cd DCI-CTON-Virtual-Try-On
+```
+5. Run the test2.sh script 
+
+```
+sh test2.sh
+```
+
+PS: make sure that you edit the shell file so that it contains the right paths to the dataset
+
+
+
+## Pipeline overview: 
+Our pieline consists of three main phases. In the first phase we take the raw pictures and preprocess them and create different components required for the feature representation of the images. After that the feature images are given to the warp model that generates a warp mask for of the clothing. The warp mask along with the person image is then fed to the diffusion model that generates the final results. 
+
+
+
+
+![Alt text](./images/workflow.jpeg)
+
+
+
+
+## Preprocessing: 
+Generally, most of the Try on models and the research work, use For pre processing we had to research and test multiple different services and models available for the preprocessing tasks such as segmentation, pose estimation, mask generation, body keypoints detection and more. 
+If you do not have the dataset preprocessed, you can run the preprocessig pipeline by passing the path in the script. 
+```
+python prepro3.py
+```
+
+The following is a breif overview along with sample runs on the same image. 
+<p>
+<img src = "./images/image.jpg" width=200 height=250/>
+</p>
+
+
+
+### Open Pose: 
+Open pose is used to generate the pose estimation keypoints and the image representation of the 25 body points used to the pose detection of the subject image. We used a ```.pth``` converted implementation of the official openpose model. ore details about this model can be found here: https://github.com/beingjoey/pytorch_openpose_body_25?tab=readme-ov-file
+<p>
+<img src = "./images/openpose_img.png" width=200 height=250/>
+</p>
+
+### Image Parse: 
+The image Prase model is used to generate the body segmentation of the subject image the segmentations are used to differentiate between the clothing and the different body parts of the human being. We used the following parsing model: https://github.com/Engineering-Course/LIP_JPPNet
+<p>
+<img src = "./images/image_parse.png" width=200 height=250/>
+</p>
+
+### Dense Pose: 
+The dense pose gives a pose detectin of the given image. We used the detectron 22's following model with slight modifications: https://github.com/facebookresearch/detectron2/blob/main/projects/DensePose/doc/TOOL_QUERY_DB.md
+<p>
+<img src = "./images/densepose.jpg" width=200 height=250/>
+</p>
+
+### Cloth Warp: 
+The warping model estimates an apearance flow for the given clothing image and gives out a clothing image warped around according to the subject image pose. For the DCI VTON based model we use PFAFN's warp generation model as mentioned in their paper. 
+<img src = "./images/results.jpeg" />
+
+
+
+
+
+## Conclusion: 
+After fine tuning we were able to reduce the artifacts generated by the model. There was also an increase in consistancy with necklines and waist area of the resulting image. However, the model still give's a lot of artifacts when given input cloths that are of a unique style or is rare in the training dataset such as knits and sweaters. 
+
+### old results: 
+![alt-text](./images/example1.jpg)
+
+### fine-tuned results: 
+![alt-text](./images/example2.jpg)
